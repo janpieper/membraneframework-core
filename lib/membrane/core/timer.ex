@@ -56,7 +56,12 @@ defmodule Membrane.Core.Timer do
 
     time_passed = time_passed + interval
     time = (init_time + time_passed / ratio) |> Ratio.floor() |> Time.to_milliseconds()
-    timer_ref = Process.send_after(self(), Message.new(:timer_tick, id), time, abs: true)
+
+    timer_ref =
+      Process.send_after(self(), GroupServer.wrap_self(Message.new(:timer_tick, id)), time,
+        abs: true
+      )
+
     %__MODULE__{timer | time_passed: time_passed, timer_ref: timer_ref}
   end
 

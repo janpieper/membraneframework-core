@@ -151,7 +151,7 @@ defmodule Membrane.Clock do
     state
     |> update_in([:subscribers, pid], fn
       nil ->
-        send_ratio(pid, state.ratio)
+        # send_ratio(pid, state.ratio)
         monitor = Process.monitor(pid)
         %{monitor: monitor, subscriptions: 1}
 

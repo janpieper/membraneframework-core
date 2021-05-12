@@ -35,7 +35,7 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
     with {:ok, %{pid: dest_pid, other_ref: other_ref}} <-
            PadModel.get_data(bin_state, sender_pad),
          false <- currently_linking?(sender_pad, bin_state) do
-      send(dest_pid, Message.set_for_pad(msg, other_ref))
+      GroupServer.send(dest_pid, Message.set_for_pad(msg, other_ref))
       bin_state
     else
       _unknown_or_linking ->
@@ -80,6 +80,6 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
 
   defp do_flush(msg, sender_pad, bin_state) do
     {:ok, %{pid: dest_pid, other_ref: other_ref}} = PadModel.get_data(bin_state, sender_pad)
-    send(dest_pid, Message.set_for_pad(msg, other_ref))
+    GroupServer.send(dest_pid, Message.set_for_pad(msg, other_ref))
   end
 end

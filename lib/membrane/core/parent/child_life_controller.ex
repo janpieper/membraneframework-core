@@ -47,7 +47,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
     children_pids = children |> Enum.map(& &1.pid)
 
     # monitoring children
-    :ok = Enum.each(children_pids, &Process.monitor(&1))
+    # :ok = Enum.each(children_pids, &Process.monitor(&1))
 
     :ok = StartupHandler.maybe_activate_syncs(syncs, state)
     {:ok, state} = StartupHandler.add_children(children, state)
@@ -78,7 +78,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
 
   defp do_handle_forward({child_name, message}, state) do
     with {:ok, %{pid: pid}} <- state |> Parent.ChildrenModel.get_child_data(child_name) do
-      send(pid, message)
+      GroupServer.send(pid, message)
       :ok
     else
       {:error, reason} ->

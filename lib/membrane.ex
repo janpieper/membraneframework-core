@@ -11,6 +11,7 @@ defmodule Membrane do
       {Membrane.Log.Supervisor, logger_config}
     ]
 
+    # :observer.start()
     opts = [strategy: :one_for_one, name: Membrane]
     Supervisor.start_link(children, opts)
   end

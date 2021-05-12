@@ -22,7 +22,7 @@ defmodule Membrane.Core.Message do
 
   @spec send(pid, type_t, args_t, opts_t) :: t
   def send(pid, type, args \\ [], opts \\ []) do
-    Kernel.send(pid, message(type: type, args: args, opts: opts))
+    GroupServer.send(pid, message(type: type, args: args, opts: opts))
   end
 
   @spec self(type_t, args_t, opts_t) :: t
@@ -32,7 +32,7 @@ defmodule Membrane.Core.Message do
 
   @spec call(GenServer.server(), type_t, args_t, opts_t, timeout()) :: term()
   def call(pid, type, args \\ [], opts \\ [], timeout \\ 5000) do
-    GenServer.call(pid, message(type: type, args: args, opts: opts), timeout)
+    GroupServer.call(pid, message(type: type, args: args, opts: opts), timeout)
   end
 
   @spec for_pad(t()) :: Pad.ref_t()

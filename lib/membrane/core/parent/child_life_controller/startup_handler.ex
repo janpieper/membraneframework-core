@@ -72,8 +72,9 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
         ) :: [ChildEntry.t()]
   def start_children(children, parent_clock, syncs, log_metadata) do
     Membrane.Logger.debug("Starting children: #{inspect(children)}")
-
-    children |> Enum.map(&start_child(&1, parent_clock, syncs, log_metadata))
+    {:ok, group_server, []} = GroupServer.start_link()
+    IO.inspect(group_server, label: :gsrv)
+    children |> Enum.map(&start_child(&1, parent_clock, syncs, log_metadata, group_server))
   end
 
   @spec add_children([ChildEntry.t()], Parent.state_t()) ::
@@ -144,7 +145,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
     end
   end
 
-  defp start_child(child, parent_clock, syncs, log_metadata) do
+  defp start_child(child, parent_clock, syncs, log_metadata, group_server) do
     %ChildEntry{name: name, module: module, options: options} = child
     Membrane.Logger.debug("Starting child: name: #{inspect(name)}, module: #{inspect(module)}")
     sync = syncs |> Map.get(name, Sync.no_sync())
@@ -154,15 +155,18 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
     start_result =
       case child.component_type do
         :element ->
-          Core.Element.start(%{
-            parent: self(),
-            module: module,
-            name: name,
-            user_options: options,
-            parent_clock: parent_clock,
-            sync: sync,
-            log_metadata: log_metadata
-          })
+          Core.Element.start(
+            %{
+              parent: self(),
+              module: module,
+              name: name,
+              user_options: options,
+              parent_clock: parent_clock,
+              sync: sync,
+              log_metadata: log_metadata
+            },
+            group_server
+          )
 
         :bin ->
           unless sync == Sync.no_sync() do

@@ -46,17 +46,17 @@ defmodule Membrane.Core.Element do
   Calls `GenServer.start_link/3` underneath.
   """
   @spec start_link(options_t, GenServer.options()) :: GenServer.on_start()
-  def start_link(options, process_options \\ []),
-    do: do_start(:start_link, options, process_options)
+  def start_link(options, group_server, process_options \\ []),
+    do: do_start(:start_link, options, group_server, process_options)
 
   @doc """
   Works similarly to `start_link/5`, but does not link to the current process.
   """
   @spec start(options_t, GenServer.options()) :: GenServer.on_start()
-  def start(options, process_options \\ []),
-    do: do_start(:start, options, process_options)
+  def start(options, group_server, process_options \\ []),
+    do: do_start(:start, options, group_server, process_options)
 
-  defp do_start(method, options, process_options) do
+  defp do_start(method, options, group_server, process_options) do
     %{module: module, name: name, user_options: user_options} = options
 
     if Element.element?(options.module) do
@@ -67,7 +67,8 @@ defmodule Membrane.Core.Element do
       process options: #{inspect(process_options)}
       """)
 
-      apply(GenServer, method, [__MODULE__, options, process_options])
+      # apply(GenServer, method, [__MODULE__, options, process_options])
+      GroupServer.add_subserver(group_server, __MODULE__, options)
     else
       raise """
       Cannot start element, passed module #{inspect(module)} is not a Membrane Element.
@@ -93,7 +94,7 @@ defmodule Membrane.Core.Element do
 
   @impl GenServer
   def init(options) do
-    parent_monitor = Process.monitor(options.parent)
+    # parent_monitor = Process.monitor(options.parent)
     name_str = if String.valid?(options.name), do: options.name, else: inspect(options.name)
     :ok = Membrane.Logger.set_prefix(name_str)
     Logger.metadata(options.log_metadata)
@@ -103,7 +104,7 @@ defmodule Membrane.Core.Element do
     state =
       options
       |> Map.take([:module, :name, :parent_clock, :sync])
-      |> Map.put(:parent_monitor, parent_monitor)
+      # |> Map.put(:parent_monitor, parent_monitor)
       |> State.new()
 
     with {:ok, state} <- LifecycleController.handle_init(options.user_options, state) do
