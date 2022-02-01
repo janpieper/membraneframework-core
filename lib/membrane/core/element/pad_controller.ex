@@ -150,11 +150,8 @@ defmodule Membrane.Core.Element.PadController do
           Type.stateful_try_t(Core.Element.State.t())
   def handle_unlink(pad_ref, state) do
     with {:ok, state} <- flush_playback_buffer(pad_ref, state),
-         {:ok, state} <- generate_eos_if_needed(pad_ref, state),
-         {:ok, state} <- maybe_handle_pad_removed(pad_ref, state) do
-      state = remove_pad_associations(pad_ref, state)
-      state = PadModel.delete_data!(state, pad_ref)
-      {:ok, state}
+         {:ok, state} <- generate_eos_if_needed(pad_ref, state) do
+      maybe_remove_pad(pad_ref, state)
     end
   end
 
@@ -347,21 +344,26 @@ defmodule Membrane.Core.Element.PadController do
     end
   end
 
-  @spec maybe_handle_pad_removed(Pad.ref_t(), Core.Element.State.t()) ::
+  @spec maybe_remove_pad(Pad.ref_t(), Core.Element.State.t()) ::
           Type.stateful_try_t(Core.Element.State.t())
-  defp maybe_handle_pad_removed(ref, state) do
+  defp maybe_remove_pad(ref, state) do
     %{direction: direction, availability: availability} = PadModel.get_data!(state, ref)
 
     if Pad.availability_mode(availability) == :dynamic do
       context = &CallbackContext.PadRemoved.from_state(&1, direction: direction)
 
-      CallbackHandler.exec_and_handle_callback(
-        :handle_pad_removed,
-        ActionHandler,
-        %{context: context},
-        [ref],
-        state
-      )
+      {:ok, state} =
+        CallbackHandler.exec_and_handle_callback(
+          :handle_pad_removed,
+          ActionHandler,
+          %{context: context},
+          [ref],
+          state
+        )
+
+      state = remove_pad_associations(ref, state)
+      state = PadModel.delete_data!(state, ref)
+      {:ok, state}
     else
       {:ok, state}
     end
