@@ -26,6 +26,8 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
   require Membrane.Logger
   require Membrane.Pad
 
+  @linking_timeout 5000
+
   @type link_id_t :: {ChildLifeController.spec_ref_t(), reference()}
 
   @type pending_spec_t :: %{
@@ -40,7 +42,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
   @spec init_spec_linking(ChildLifeController.spec_ref_t(), [LinkParser.raw_link_t()], state_t()) ::
           state_t()
   def init_spec_linking(spec_ref, links, state) do
-    Process.send_after(self(), Message.new(:spec_linking_timeout, spec_ref), 5000)
+    Process.send_after(self(), Message.new(:spec_linking_timeout, spec_ref), @linking_timeout)
 
     {links, state} =
       Enum.map_reduce(links, state, fn link, state ->
@@ -77,8 +79,9 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
     {spec_data, state} = pop_in(state, [:pending_specs, spec_ref])
 
     unless spec_data.status == :linked do
-      raise LinkError,
-            "Spec #{inspect(spec_ref)} linking took too long, spec_data: #{inspect(spec_data, pretty: true)}"
+      Membrane.Logger.warn(
+        "Spec #{inspect(spec_ref)} linking is taking over #{@linking_timeout} ms, spec_data: #{inspect(spec_data, pretty: true)}"
+      )
     end
 
     state
