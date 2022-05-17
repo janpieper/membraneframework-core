@@ -134,7 +134,7 @@ defmodule Membrane.Core.Child.PadModel do
   end
 
   # TODO: leave the main branch only when we stop supporting elixir prior 1.14
-  if Version.match?(System.version(), ">= 1.14.0-dev") do
+  if false do
     alias Membrane.Core.Helper.FastMap
     require FastMap
 
