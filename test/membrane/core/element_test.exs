@@ -99,49 +99,13 @@ defmodule Membrane.Core.ElementTest do
   end
 
   defp playing_state do
-    {:noreply, state} =
-      Element.handle_info(Message.new(:change_playback_state, :playing), linked_state())
-
+    {:noreply, state} = Element.handle_info(Message.new(:play), linked_state())
     state
   end
 
-  test "should change playback state" do
-    assert {:noreply, state} =
-             Element.handle_info(
-               Message.new(:change_playback_state, :prepared),
-               linked_state()
-             )
-
-    assert state.playback.state == :prepared
-
-    assert {:noreply, state} =
-             Element.handle_info(Message.new(:change_playback_state, :playing), state)
-
-    assert state.playback.state == :playing
-
-    assert {:noreply, state} =
-             Element.handle_info(Message.new(:change_playback_state, :prepared), state)
-
-    assert state.playback.state == :prepared
-
-    assert {:noreply, state} =
-             Element.handle_info(Message.new(:change_playback_state, :stopped), state)
-
-    assert state.playback.state == :stopped
-
-    assert {:noreply, state} =
-             Element.handle_info(Message.new(:change_playback_state, :playing), state)
-
-    assert state.playback.state == :playing
-  end
-
-  test "should raise when static pads unlinked is playback state other than stopped" do
+  test "should raise when static pads not linked when getting play request" do
     assert_raise Membrane.LinkError, fn ->
-      assert {:noreply, _state} =
-               Element.handle_info(
-                 Message.new(:change_playback_state, :prepared),
-                 get_state()
-               )
+      assert {:noreply, _state} = Element.handle_info(Message.new(:play), get_state())
     end
   end
 
@@ -299,34 +263,29 @@ defmodule Membrane.Core.ElementTest do
   end
 
   describe "Not linked element" do
-    test "should shutdown when pipeline is down" do
-      pipeline_mock = spawn(fn -> receive do: (:exit -> :ok) end)
+    test "DOWN message should be delivered to handle_info" do
+      parent_pid = self()
 
       {:ok, elem_pid} =
-        pipeline_mock
-        |> element_init_options
-        |> Element.start()
-
-      ref = Process.monitor(elem_pid)
-      send(pipeline_mock, :exit)
-      assert_receive {:DOWN, ^ref, :process, ^elem_pid, {:shutdown, :parent_crash}}
-    end
-
-    test "DOWN message should be delivered to handle_info if it's not coming from parent" do
-      {:ok, elem_pid} =
-        self()
+        parent_pid
         |> element_init_options
         |> Element.start()
 
       monitored_proc = spawn(fn -> receive do: (:exit -> :ok) end)
       on_exit(fn -> send(monitored_proc, :exit) end)
-      ref = Process.monitor(monitored_proc)
-
+      ref = make_ref()
       send(elem_pid, {:DOWN, ref, :process, monitored_proc, :normal})
 
       assert_receive Message.new(:child_notification, [
                        :name,
                        {:DOWN, ^ref, :process, ^monitored_proc, :normal}
+                     ])
+
+      send(elem_pid, {:DOWN, ref, :process, parent_pid, :normal})
+
+      assert_receive Message.new(:child_notification, [
+                       :name,
+                       {:DOWN, ^ref, :process, ^parent_pid, :normal}
                      ])
 
       assert Process.alive?(elem_pid)
@@ -342,7 +301,7 @@ defmodule Membrane.Core.ElementTest do
       parent: pipeline,
       parent_clock: nil,
       sync: Membrane.Sync.no_sync(),
-      log_metadata: []
+      setup_logger: fn _pid -> [] end
     }
   end
 end
